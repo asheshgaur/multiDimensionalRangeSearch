@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <set>
+#include <stack>
 
 using namespace std;
 
@@ -144,26 +145,44 @@ void node::setRightChild(node* r)
 // FUNCTIONS not part of class
 
 // create the tree and return the root node of the tree
-node* createTree(vector<node> allNodes, int l, int r)
+node* createTree(vector<node*>& allNodes, int l, int r)
 {
-	// Base Case - needs to change??
-	if ((l-r) <= 0)
-		return NULL;
+	// Base Case
+	if (r == l)
+		return allNodes[r];
 
 	// left recursion
-	node* left = createTree(allNodes, l, ((l-r) / 2));
+	node* left = createTree(allNodes, l, l + ((r - l) / 2));
 
 	// create the root node
 	// sending the left and the right range of this subset
-	node *root = new node(allNodes[l].getLR(), allNodes[r].getRR()); 
+	node *root = new node(allNodes[l]->getLR(), allNodes[r]->getRR()); 
 	root->setLeftChild(left); // set left child
 
 	// right recursion - set right child
-	root->setRightChild(createTree(allNodes, ((l - r) / 2) + 1, r));
+	root->setRightChild(createTree(allNodes, l + ((r - l) / 2) + 1, r));
 
 	return root; // return root
-}
+ }
 
+// node* createTree(vector<node> allNodes) {
+// 	int rangeMin, rangeMax;
+// 	stack<*node> parentStack1, parentStack2;
+// 	for (int i = 0; i < allNodes.size(); i++) {
+// 		rangeMin = allNodes[i].getLR();
+// 		rangeMax = allNodes[i+1].getRR();
+// 		node parentNode = new node(rangeMin, rangeMax);
+// 		parentNode.setLeftChild(*allNodes[i]);
+// 		parentNode.setRightChild(*allNodes[i+1]);
+// 		parentStack.push(*parentNode);
+// 	}
+// 	while (!parentStack1.empty()) {
+// 		node* parent1 = parentStack1.pop();
+// 		node* parent2 = parentStack2.pop();
+// 		node grandParentNode = new node(parent1->getLR(), parent2->getRR());
+// 		parentStack2.push(*grandParentNode); 
+// 	}
+// }
 // tree traversal - preorder 
 void preOrder(node* n)
 {
@@ -175,7 +194,7 @@ void preOrder(node* n)
 }
 
 // function to print set
-void printSet(set<int> vec)
+void printSet(set<int>& vec)
 {
 	cout << "Printing: " << endl;
 	for(auto a : vec)
@@ -184,7 +203,7 @@ void printSet(set<int> vec)
 }
 
 // function to print rules
-void printRules(vector<rule> vec)
+void printRules(vector<rule>& vec)
 {
 	cout << "Printing Rules: " << endl;
 	for(auto a : vec)
@@ -192,11 +211,11 @@ void printRules(vector<rule> vec)
 }
 
 // function to print nodes
-void printNodes(vector<node> vec)
+void printNodes(vector<node*>& vec)
 {
 	cout << "Printing Nodes: " << endl;
 	for(auto a : vec)
-		a.printNode();
+		a->printNode();
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -209,7 +228,7 @@ int main()
 
 	set<int> allNums; // set to store all the numbers - sorted without duplicates
 	vector<rule> allRules; // array of rules
-	vector<node> allNodes; // arra of leaf nodes
+	vector<node*> allNodes; // arra of leaf nodes
 
 	// read in all the rules
 	int leftRange, rightRange;
@@ -230,7 +249,7 @@ int main()
 	{
 		auto it = next(allNums.begin(), i);
 		auto it2 = next(allNums.begin(), i+1);
-		node tempNode = node(*it, *it2);
+		node* tempNode = new node(*it, *it2);
 		allNodes.push_back(tempNode);
 	}
 
