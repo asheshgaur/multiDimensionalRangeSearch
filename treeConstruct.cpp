@@ -163,26 +163,64 @@ node* createTree(vector<node*>& allNodes, int l, int r)
 	root->setRightChild(createTree(allNodes, l + ((r - l) / 2) + 1, r));
 
 	return root; // return root
- }
+}
 
-// node* createTree(vector<node> allNodes) {
-// 	int rangeMin, rangeMax;
-// 	stack<*node> parentStack1, parentStack2;
-// 	for (int i = 0; i < allNodes.size(); i++) {
-// 		rangeMin = allNodes[i].getLR();
-// 		rangeMax = allNodes[i+1].getRR();
-// 		node parentNode = new node(rangeMin, rangeMax);
-// 		parentNode.setLeftChild(*allNodes[i]);
-// 		parentNode.setRightChild(*allNodes[i+1]);
-// 		parentStack.push(*parentNode);
-// 	}
-// 	while (!parentStack1.empty()) {
-// 		node* parent1 = parentStack1.pop();
-// 		node* parent2 = parentStack2.pop();
-// 		node grandParentNode = new node(parent1->getLR(), parent2->getRR());
-// 		parentStack2.push(*grandParentNode); 
-// 	}
-// }
+// populate one rule in the tree - left subtree
+void populateOneRuleLeft(node* rNode, rule* rCurrent)
+{
+	if (rNode == NULL)
+		return;
+
+    // 3 cases: 
+    if(rNode->getLR() < )
+    {
+        cout << "Populating"
+	    n->printNode(); // print node
+        return;
+	}
+
+    // check if you need to go right or left
+    if()
+    populateOneRule(n->getLC()); // call left child
+
+    if()
+	populateOneRule(n->getRC()); // call right child
+}
+
+// populate one rule in the tree - left subtree
+void populateOneRuleRight(node* rNode, rule* rCurrent)
+{
+	if (rNode == NULL)
+		return;
+
+    // 3 cases: 
+    if(rNode->getLR() < )
+    {
+        cout << "Populating"
+	    n->printNode(); // print node
+        return;
+	}
+
+    // check if you need to go right or left
+    if()
+    populateOneRule(n->getLC()); // call left child
+
+    if()
+	populateOneRule(n->getRC()); // call right child
+}
+
+// populate the tree with the rootNode with the rules
+void populateRules(node* rNode, vector<rule*> allRules)
+{
+    for(int i = 0; i < allRules.size(); i++)
+    {
+        populateOneRuleLeft(rNode, allRules[i]);
+        populateOneRuleRight(rNode, allRules[i]);
+    }
+}
+
+
+
 // tree traversal - preorder 
 void preOrder(node* n)
 {
@@ -203,11 +241,11 @@ void printSet(set<int>& vec)
 }
 
 // function to print rules
-void printRules(vector<rule>& vec)
+void printRules(vector<rule*>& vec)
 {
 	cout << "Printing Rules: " << endl;
 	for(auto a : vec)
-		a.printRule();
+		a->printRule();
 }
 
 // function to print nodes
@@ -227,8 +265,8 @@ int main()
 	cin >> numRanges;
 
 	set<int> allNums; // set to store all the numbers - sorted without duplicates
-	vector<rule> allRules; // array of rules
-	vector<node*> allNodes; // arra of leaf nodes
+	vector<rule*> allRules; // array of rule pointers
+	vector<node*> allNodes; // arra of leaf node pointers
 
 	// read in all the rules
 	int leftRange, rightRange;
@@ -239,7 +277,7 @@ int main()
 		allNums.insert(rightRange);
 
 		// temp rule to insert into allRules
-		rule tempRule = rule(leftRange, rightRange, i); // calling the constructor
+		rule* tempRule = new rule(leftRange, rightRange, i); // calling the constructor
 		allRules.push_back(tempRule);
 	}
 
@@ -257,9 +295,15 @@ int main()
 	printSet(allNums);
 	printRules(allRules);
 
-	// not working yet
+	// create the tree
 	node* rootNode = createTree(allNodes, 0, allNodes.size() - 1);
 	preOrder(rootNode);
+
+    // populate the rules in the tree
+    populateRules(rootNode, allRules);
+	preOrder(rootNode);
+
+    // destructors for all the local vector of pointers
 
 	return 0;
 }
