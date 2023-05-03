@@ -22,6 +22,8 @@ class rule
 
 		// display
 		void printRule();
+		int getLR();
+		int getRR();
 };
 
 // default constructor
@@ -46,7 +48,13 @@ void rule::printRule()
 	cout << "Rule " << ruleNumber << ": " << lRange << " - " << rRange << endl;
 }
 
+int rule::getLR(){
+	return lRange;
+}
 
+int rule::getRR(){
+	return rRange;
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // node class to keep track of the intermediate nodes in the tree
 class node
@@ -89,8 +97,8 @@ node::node(int lR, int rR)
 {
 		lRange = lR;
 		rRange = rR;
-		leftChild = NULL;
-		rightChild = NULL;
+		leftChild = (node*)NULL;
+		rightChild = (node*)NULL;
 }
 
 // getter for left range
@@ -121,6 +129,14 @@ node* node::getRC()
 void node::printNode()
 {
 	cout << "(" << lRange << " - " << rRange << ")" << endl;
+	if (this->rulesAssigned.size()!= 0)
+	{
+		cout << "Rules for this node:" << endl;
+		for (int i = 0; i < this->rulesAssigned.size(); i++){
+			cout << this->rulesAssigned[i] << " ";
+		}
+	}
+	cout << endl;
 }
 
 // add rule into a specific node
@@ -165,60 +181,104 @@ node* createTree(vector<node*>& allNodes, int l, int r)
 	return root; // return root
 }
 
+bool isPartiallyOverlapping(rule* r, node* n){
+	if (r->getLR() == n->getLR() && r->getRR() == n->getRR()){
+		return false;
+	}
+	else if (r->getLR() >= n->getRR()){
+		return false;
+	}
+	else if (r->getRR() <= n->getLR()){
+		return false;
+	}
+	else return true;
+}
 // populate one rule in the tree - left subtree
-void populateOneRuleLeft(node* rNode, rule* rCurrent)
+void populateSubTree(node* rNode, rule* rCurrent)
 {
 	if (rNode == NULL)
 		return;
 
-    // 3 cases: 
-    if(rNode->getLR() < )
-    {
-        cout << "Populating"
-	    n->printNode(); // print node
-        return;
-	}
-
-    // check if you need to go right or left
-    if()
-    populateOneRule(n->getLC()); // call left child
-
-    if()
-	populateOneRule(n->getRC()); // call right child
-}
-
-// populate one rule in the tree - left subtree
-void populateOneRuleRight(node* rNode, rule* rCurrent)
-{
-	if (rNode == NULL)
+	//Check if the node range and the rule range are the same.
+	if (rNode->getLR() == rCurrent->getLR() && rNode->getRR() == rCurrent->getRR()){
+		rNode->setRule(*rCurrent);
 		return;
-
-    // 3 cases: 
-    if(rNode->getLR() < )
-    {
-        cout << "Populating"
-	    n->printNode(); // print node
-        return;
 	}
 
-    // check if you need to go right or left
-    if()
-    populateOneRule(n->getLC()); // call left child
+	// Check if the node range is a subset of the rule range
+	else if (rNode->getLR() >= rCurrent->getLR() && rNode->getRR() <= rCurrent->getRR()){
+		rNode->setRule(*rCurrent);
+		return;
+	}
+		
 
-    if()
-	populateOneRule(n->getRC()); // call right child
+	// Check if the node range is partially overlapping with the rule range
+	else if (isPartiallyOverlapping(rCurrent, rNode) ){
+		populateSubTree(rNode->getLC(), rCurrent);
+		populateSubTree(rNode->getRC(), rCurrent);
+	}
+	else return;
 }
 
+bool splitNodeCondition(rule* r, node* rootNode){
+	if (r->getLR() >= rootNode->getLR() && 
+		r->getRR() <= rootNode->getRR()){
+			return true;
+		}
+	else return false;
+}
+node* determineSplitNode(rule* r, node* rootNode){
+	/*
+	* Check if the range of the rule is fully inside the
+	* range of the current node. 
+	*/
+	if (splitNodeCondition(r, rootNode)){
+			node* splitNode = rootNode;
+			if( rootNode->getLC() != (node*)NULL && 
+				splitNodeCondition(r, rootNode->getLC()))
+				splitNode = determineSplitNode(r, rootNode->getLC());
+			else if (rootNode->getLC() != (node*)NULL && 
+				splitNodeCondition(r, rootNode->getRC()))
+				splitNode = determineSplitNode(r, rootNode->getRC());
+
+			else return splitNode;
+	}
+	else {
+		return (node*)NULL;
+	}
+}
+bool isLeafNode(node* n){
+	if(n->getLC() == (node*)NULL && n->getRC() == (node*)NULL)
+		return true;
+	else return false;
+}
+
+// bool isCompleteMatch()
 // populate the tree with the rootNode with the rules
 void populateRules(node* rNode, vector<rule*> allRules)
 {
     for(int i = 0; i < allRules.size(); i++)
     {
-        populateOneRuleLeft(rNode, allRules[i]);
-        populateOneRuleRight(rNode, allRules[i]);
+		node* splitNode = determineSplitNode(allRules[i], rNode);
+
+		// Probably don't need this clause
+		if(isLeafNode(splitNode)){
+			splitNode->setRule(*allRules[i]); // check if this works.
+			continue;
+		}
+		// check if the split node exactly matches the rule range.
+		else if(splitNode->getLR() == allRules[i]->getLR() && 
+				splitNode->getRR() == allRules[i]->getRR()) {
+					splitNode->setRule(*allRules[i]); // check if this works.
+					continue;
+		}
+		else {
+			populateSubTree(splitNode->getLC(), allRules[i]);
+        	populateSubTree(splitNode ->getRC(), allRules[i]);
+		}
+        
     }
 }
-
 
 
 // tree traversal - preorder 
@@ -251,7 +311,7 @@ void printRules(vector<rule*>& vec)
 // function to print nodes
 void printNodes(vector<node*>& vec)
 {
-	cout << "Printing Nodes: " << endl;
+	cout << "Printing Leaf Nodes: " << endl;
 	for(auto a : vec)
 		a->printNode();
 }
