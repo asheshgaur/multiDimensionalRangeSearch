@@ -18,37 +18,43 @@ using namespace std;
 class rule
 {
 	int ruleNumber;
-    unsigned int prefixLength; //The CIDR prefix for SIP and DIP.
-	array<array<unsigned int,2>, 5> fields;
+    vector<unsigned int> prefixLength; //The CIDR prefix for SIP and DIP.
+	vector<pair<unsigned int, unsigned int>> fields;
 	int lRange;
 	int rRange;
 	int numDimensions;
 
 	public:
 		// constructors
-		rule(int dimensions);
-		rule(array<array<unsigned int,2>, 5> fields, int num, int dimensions);
+		rule(int dimensions, int ruleCounter);
+		rule(vector<pair<unsigned int,unsigned int>> fields, int num, int dimensions);
 
 		// display
 		void printRule();
 		int getLR(int dimension);
 		int getRR(int dimension);
 		int getDimensionality();
-        unsigned int getPrefixLength();
-        array<unsigned int,2> getDimRange(int dimension);
+        unsigned int getPrefixLength(int dim);
+        unsigned int getDimRangeMin(int dimension);
+		unsigned int getDimRangeMax(int dimension);
+		void setPrefixLength(int dim, unsigned int value);
+		void setDimRangeMin(int dimension, unsigned int value);
+		void setDimRangeMax(int dimension, unsigned int value);
 };
 
 // default constructor
-rule::rule(int dimensions)
+rule::rule(int dimensions, int ruleCounter)
 {
-	ruleNumber = -1;
+	this->ruleNumber = ruleCounter + 1;
 	lRange = -1;
 	rRange = -1;
     this->numDimensions = dimensions;
+	fields.resize(5);
+	prefixLength.resize(2);
 }
 
 // non-default constructor
-rule::rule(array<array<unsigned int,2>,5>field, int num, int dimensions)
+rule::rule(vector<pair<unsigned int, unsigned int>>field, int num, int dimensions)
 {
 	ruleNumber = num + 1;
 	this->fields = field;
@@ -60,33 +66,48 @@ void rule::printRule()
 {
 	cout << "Rule " << ruleNumber << ": " << endl;
 	for(int i = 0; i < numDimensions; i++)
-		cout << "Field" << i+1 << ": " << fields[i][0] << " " << fields[i][1] << endl;
+		cout << "Field" << i+1 << ": " << fields[i].first << " " << fields[i].second << endl;
 }
 
 int rule::getLR(int dimension){
-	return fields[dimension - 1][0];
+	return fields[dimension - 1].first;
 }
 
 int rule::getRR(int dimension){
-	return fields[dimension - 1][1];
+	return fields[dimension - 1].second;
 }
 
 int rule::getDimensionality(){
 	return this->numDimensions;
 }
-unsigned int rule::getPrefixLength(){
-    return this->prefixLength;
+unsigned int rule::getPrefixLength(int dim){
+    return this->prefixLength[dim];
 }
 
-array<unsigned int,2> rule::getDimRange(int dimension){
-    return fields[dimension];
+unsigned int rule::getDimRangeMin(int dimension){
+    return fields[dimension].first;
+}
+unsigned int rule::getDimRangeMax(int dimension){
+    return fields[dimension].second;
+}
+void rule::setDimRangeMin(int dimension, unsigned int value){
+		this->fields[dimension].first = value;
+
+}
+void rule::setDimRangeMax(int dimension, unsigned int value){
+		this->fields[dimension].second = value;
+
+}
+
+void rule::setPrefixLength(int dim, unsigned int value){
+	this->prefixLength[dim] = value;
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // node class to keep track of the intermediate nodes in the tree
 class node
 {
-	int lRange;
-	int rRange;
+	unsigned int lRange;
+	unsigned int rRange;
 	vector<rule*> rulesAssigned;
 	node* leftChild;
 	node* rightChild;
@@ -95,7 +116,7 @@ class node
 	public: 
 		// constructors
 		node();
-		node(int lR, int rR);
+		node(unsigned int lR, unsigned int rR);
 
 		// display
 		void printNode(); 
@@ -107,8 +128,8 @@ class node
 		void setMidChild(node* m);
 
 		//getters
-		int getLR();
-		int getRR();
+		unsigned int getLR();
+		unsigned int getRR();
 		node* getLC();
 		node* getRC();
 		node* getMC();
@@ -123,7 +144,7 @@ node::node()
 }
 
 // non-default constructor
-node::node(int lR, int rR)
+node::node(unsigned int lR, unsigned int rR)
 {
 		lRange = lR;
 		rRange = rR;
@@ -133,13 +154,13 @@ node::node(int lR, int rR)
 }
 
 // getter for left range
-int node::getLR()
+unsigned int node::getLR()
 {
 	return lRange;
 }
 
 // getter for right range
-int node::getRR()
+unsigned int node::getRR()
 {
 	return rRange;
 }
@@ -429,7 +450,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
 	return elems;
 }
 
-void ReadIPRange(std::array<unsigned int,2>& IPrange,  unsigned int& prefix_length, const string& token)
+void ReadIPRange(rule* current_rule, const string& token, int currDim)
 {
 	//cout << token << endl;
 	//split slash
@@ -445,7 +466,7 @@ void ReadIPRange(std::array<unsigned int,2>& IPrange,  unsigned int& prefix_leng
 		ptrange[i] = atoui(split_ip[i]);
 	mask = atoui(split_slash[1]);
 	
-	prefix_length = mask;
+	current_rule->setPrefixLength(currDim, mask);
 
 	mask = 32 - mask;
 	masklit1 = mask / 8;
@@ -462,14 +483,16 @@ void ReadIPRange(std::array<unsigned int,2>& IPrange,  unsigned int& prefix_leng
 		ptrange[3 - masklit1] &= masklit3;
 	}
 	/*store start IP */
-	IPrange[0] = ptrange[0];
-	IPrange[0] <<= 8;
-	IPrange[0] += ptrange[1];
-	IPrange[0] <<= 8;
-	IPrange[0] += ptrange[2];
-	IPrange[0] <<= 8;
-	IPrange[0] += ptrange[3];
-
+	unsigned int IP_start = current_rule->getDimRangeMin(currDim);
+	IP_start = ptrange[0];
+	IP_start <<= 8;
+	IP_start += ptrange[1];
+	IP_start <<= 8;
+	IP_start += ptrange[2];
+	IP_start <<= 8;
+	IP_start += ptrange[3];
+	
+	current_rule->setDimRangeMin(currDim, IP_start);
 	//key += std::bitset<32>(IPrange[0] >> prefix_length).to_string().substr(32 - prefix_length);
 	/*count the end IP*/
 	for (int i = 3; i>3 - masklit1; i--)
@@ -481,23 +504,49 @@ void ReadIPRange(std::array<unsigned int,2>& IPrange,  unsigned int& prefix_leng
 		ptrange[3 - masklit1] |= masklit3;
 	}
 	/*store end IP*/
-	IPrange[1] = ptrange[0];
-	IPrange[1] <<= 8;
-	IPrange[1] += ptrange[1];
-	IPrange[1] <<= 8;
-	IPrange[1] += ptrange[2];
-	IPrange[1] <<= 8;
-	IPrange[1] += ptrange[3];
+	unsigned int IP_end = current_rule->getDimRangeMax(currDim);
+	IP_end = ptrange[0];
+	IP_end <<= 8;
+	IP_end += ptrange[1];
+	IP_end <<= 8;
+	IP_end += ptrange[2];
+	IP_end <<= 8;
+	IP_end += ptrange[3];
+
+	current_rule->setDimRangeMax(currDim, IP_end);
 }
 
-int ReadFilter(vector<string>& tokens, vector<rule*>& ruleset, unsigned int cost)
+void ReadPort(rule* current_rule, const string& from, const string& to, int dim)
+{
+	current_rule->setDimRangeMin(dim, atoui(from));
+	//Portrange[LOW] = atoui(from);
+	current_rule->setDimRangeMax(dim, atoui(to));
+	//Portrange[HIGH] = atoui(to);
+}
+
+void ReadProtocol(rule* current_rule, const string& last_token, int dim)
+{
+	// Example : 0x06/0xFF
+	vector<string> split_slash = split(last_token, '/');
+
+	if (split_slash[1] != "0xFF") {
+		current_rule->setDimRangeMin(dim, 0);
+		current_rule->setDimRangeMax(dim, 255);
+	} else {
+		current_rule->setDimRangeMin(dim, stoul(split_slash[0], nullptr, 16));
+		current_rule->setDimRangeMax(dim, stoul(split_slash[0], nullptr, 16));
+		//Protocol[LOW] = Protocol[HIGH] = std::stoul(split_slash[0], nullptr, 16);
+	}
+}
+
+int ReadFilter(vector<string>& tokens, vector<rule*>& ruleset, unsigned int cost, int ruleCounter)
 {
 	// 5 fields: sip, dip, sport, dport, proto = 0 (with@), 1, 2 : 4, 5 : 7, 8
 
 	/*allocate a few more bytes just to be on the safe side to avoid overflow etc*/
     int dim = 5;
     int reps = 1;
-	rule temp_rule =  rule(dim);
+	rule* temp_rule = new rule(dim, ruleCounter);
 	string key;
 	if (tokens[0].at(0) != '@')  {
 		/* each rule should begin with an '@' */
@@ -512,20 +561,21 @@ int ReadFilter(vector<string>& tokens, vector<rule*>& ruleset, unsigned int cost
 		/* reading SIP range */
 		if (i == 0) {
             
-			ReadIPRange(temp_rule.getDimRange(i), temp_rule.prefix_length[i], tokens[index_token++].substr(1));
+			ReadIPRange(temp_rule, tokens[index_token++].substr(1), i);
+			
 			i++;
 		} else {
-			ReadIPRange(temp_rule.range[i], temp_rule.prefix_length[i], tokens[index_token++]);
+			ReadIPRange(temp_rule, tokens[index_token++], i);
 			i++;
 		}
 		/* reading DIP range */
-		ReadIPRange(temp_rule.range[i], temp_rule.prefix_length[i], tokens[index_token++]);
+		ReadIPRange(temp_rule, tokens[index_token++], i);
 		i++;
-		ReadPort(temp_rule.range[i++], tokens[index_token], tokens[index_token + 2]);
+		ReadPort(temp_rule, tokens[index_token], tokens[index_token + 2], i++);
 		index_token += 3;
-		ReadPort(temp_rule.range[i++], tokens[index_token], tokens[index_token + 2]);
+		ReadPort(temp_rule, tokens[index_token], tokens[index_token + 2], i++);
 		index_token += 3;
-		ReadProtocol(temp_rule.range[i++], tokens[index_token++]);
+		ReadProtocol(temp_rule, tokens[index_token++], i++);
 	}
     // Not working with priority right now.
 	//temp_rule.priority = cost;
@@ -540,10 +590,11 @@ void LoadFilters(ifstream& fp, vector<rule*>& ruleset)
 {
 	int line_number = 0;
 	string content;
+	int ruleCounter = 0;
 	while (getline(fp, content)) {
 		istringstream iss(content);
 		vector<string> tokens{ istream_iterator < string > {iss}, istream_iterator < string > {} };
-		ReadFilter(tokens, ruleset, line_number++);
+		ReadFilter(tokens, ruleset, line_number++, ruleCounter++);
 	}
 }
 
@@ -568,46 +619,132 @@ vector<rule*> readFilterFileClassBench(const string&  filename)
 
 	return	rules;
 }
+
+std::vector<Packet> header_gen(int d, std::vector<Rule>& filters, float a, float b, int threshold){
+  int num_headers = 0;
+  int fsize = filters.size();
+
+  std::vector<Packet> temp_packets;
+
+  // Allocate temporary header
+  unsigned *new_hdr = new unsigned[d];
+
+  // Generate headers
+  while(num_headers < threshold){
+    // Pick a random filter
+    int RandFilt = Random::random_int(0,fsize-1);
+
+    // Pick a random corner of the filter for a header
+    RandomCorner(RandFilt, filters, new_hdr,d);
+
+    // Select number of copies to add to header list
+    // from Pareto distribution
+    int Copies = MyPareto(a,b);
+    // printf("RandFilt = %d, a = %.4f, b = %.4f, Copies = %d\n",RandFilt,a,b,Copies);
+
+    // Add to header list
+	std::vector<unsigned> temp;
+	for (int i = 0; i < d; i++) temp.push_back(new_hdr[i]);
+	for (int i = 0; i < Copies; i++)  {
+		temp_packets.push_back(temp);
+	}
+    // Increment number of headers
+    num_headers += Copies;
+  }
+
+  delete(new_hdr);
+  return std::vector<Packet>(begin(temp_packets), begin(temp_packets)+threshold);
+}
+void RandomCorner(int RandFilt, std::vector<Rule>& filts, unsigned* new_hdr, int d){
+
+  // Random number
+	double p;
+
+  for (int i = 0; i < d; i++){
+	  p = Random::random_real_btw_0_1();
+    // Select random number
+    if (p < 0.5){
+      // Choose low extreme of field
+		new_hdr[i] = filts[RandFilt].range[i][0]; 
+    } else {
+      // Choose high extreme of field
+		new_hdr[i] = filts[RandFilt].range[i][1];
+    }
+  }
+  return;
+}
+
+int MyPareto(float a, float b){
+  if (b == 0) return 1;
+
+  // Random number
+  double p;
+  // Select random number
+  p = Random::random_real_btw_0_1();
+ 
+  double x = (double)b / pow((double)(1 - p),(double)(1/(double)a));
+  int Num = (int)ceil(x);
+  return Num;
+}
+
+
+std::vector<Packet> GeneratePacketsFromRuleset(std::vector<Rule>& filters, int num_packets){
+	if (filters.empty()) printf("warning there is no rule?\n");
+	return header_gen(filters[0].dim, filters, 1, 0.1f, num_packets);
+}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // Main function
-int main()
+int main(int argc, char* argv[])
 {
+
+	if (argc < 2)
+	{
+		cout << "Please provide the name of the input file" << endl;
+		exit(-1);
+	}
+	vector<rule*> allRules = readFilterFileClassBench(argv[1]);
+
     // Reading of a file will be completely different due to classbench format.
     // Using code from PartitionSort to read files.
 	// read in the number of rules
-	int numRules = 0;
-	int numDimensions = 0;
+	// int numRules = 0;
+	// int numDimensions = 0;
 	int dim = 1;
-	cin >> numRules;
-	cin >> numDimensions;
+	// cin >> numRules;
+	// cin >> numDimensions;
 
 	
-	set<int> allNums; // set to store all the numbers in 1 dim - sorted without duplicates
-	vector<rule*> allRules; // array of rule pointers
-	vector<node*> allNodes; // arra of leaf node pointers for 1st dim
+	set<unsigned int> allNums; // set to store all the numbers in 1 dim - sorted without duplicates
 
-	// read in all the rules
-	int leftRange, rightRange;
-	vector<pair<int,int>>tempRanges;
-	for(int i = 0; i < numRules; i++)
-	{
-		for (int j = 0; j < numDimensions; j++){
-			cin >> leftRange >> rightRange;
-
-			//inserting range endpoints for the first dimension only.
-			if (j == 0){
-				allNums.insert(leftRange);
-				allNums.insert(rightRange);
-			}
-			
-			tempRanges.push_back(make_pair(leftRange, rightRange));
-		}
-		// temp rule to insert into allRules
-		rule* tempRule = new rule(tempRanges, i, numDimensions); // calling the constructor
-
-		tempRanges.clear();
-		allRules.push_back(tempRule);
+	for (int i = 0; i < allRules.size(); i++) {
+		allNums.insert(allRules[i]->getDimRangeMin(0));
+		allNums.insert(allRules[i]->getDimRangeMax(0));
 	}
+	// //vector<rule*> allRules; // array of rule pointers
+	 vector<node*> allNodes; // arra of leaf node pointers for 1st dim
+
+	// // read in all the rules
+	// int leftRange, rightRange;
+	// vector<pair<int,int>>tempRanges;
+	// for(int i = 0; i < numRules; i++)
+	// {
+	// 	for (int j = 0; j < numDimensions; j++){
+	// 		cin >> leftRange >> rightRange;
+
+	// 		//inserting range endpoints for the first dimension only.
+	// 		if (j == 0){
+	// 			allNums.insert(leftRange);
+	// 			allNums.insert(rightRange);
+	// 		}
+			
+	// 		tempRanges.push_back(make_pair(leftRange, rightRange));
+	// 	}
+	// 	// temp rule to insert into allRules
+	// 	rule* tempRule = new rule(tempRanges, i, numDimensions); // calling the constructor
+
+	// 	tempRanges.clear();
+	// 	allRules.push_back(tempRule);
+	// }
 
 	// creating the leaf nodes
 	// n0: 10:11, n1: 11:12, n2: ... 
