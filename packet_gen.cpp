@@ -11,7 +11,7 @@
 #include "trace_tools.h"
 #include <cmath>
 
-int NUM_PACKETS = 1000000;
+int NUM_PACKETS = 1000000;//1 million packets
 // Generate headers
 // a,b in ClassBench are 1 0.1 
 // generate at least 'threshold' number of packets
