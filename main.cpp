@@ -148,6 +148,7 @@ public:
 	bool insertARule (int ruleNum, int dim);
 	bool satisfiesPacket(unsigned int point);
 	bool satisfiesRule( int ruleNum, int dim);
+	bool partialSatisfiesRule(int ruleNum, int dim);
 	bool isleaf();
 	int getDimension();
 	void preOrder();
@@ -214,6 +215,13 @@ bool RangeTree::satisfiesRule(int ruleNum, int dim) {
 	else return false;
 }
 
+bool RangeTree::partialSatisfiesRule(int ruleNum, int dim) {
+	if (((low >= rules[ruleNum]->getDimRangeMin(dim)) && (low <= rules[ruleNum]->getDimRangeMax(dim)))
+		|| ((high >= rules[ruleNum]->getDimRangeMin(dim)) && (high <= rules[ruleNum]->getDimRangeMax(dim))))
+		return true;
+	else return false;
+}
+
 
 void RangeTree::preOrder () {
 	stack<RangeTree*> s;
@@ -257,9 +265,17 @@ void insertRules (RangeTree* node, vector<int>* ruleIDs, int dim) {
 			//cout << "(" << (*t).low << ": " << (*t).high << ")" << endl;
 			inserted = 	(*t).insertARule ((*ruleIDs)[i], dim);
 			if (!inserted) {
-				if ((*t).right != NULL) s.push((*t).right);
-				if ((*t).left != NULL) s.push((*t).left);
+				if (((*t).right != NULL) && ((*t).right->partialSatisfiesRule((*ruleIDs)[i], dim))) {
+					s.push((*t).right);
+				}
+				if (((*t).left != NULL) && ((*t).left->partialSatisfiesRule((*ruleIDs)[i], dim))) {
+					s.push((*t).left);
+				}
 			}
+			// if (!inserted) {
+			// 	if ((*t).right != NULL) s.push((*t).right);
+			// 	if ((*t).left != NULL) s.push((*t).left);
+			// }
 		}
 	}
 }
@@ -893,7 +909,7 @@ int main (int argc, char* argv[]) {
 	if (argc < 4)
 	{
 		cout << "Please use the following format:" << endl;
-		cout << "./simulation {Rules_File} {maximum_nodes_per_leaf} {Brute = 0,1}\n";
+		cout << "./main {Rules_File} {maximum_nodes_per_leaf} {Brute = 0,1}\n";
 		exit(-1);
 	}
     //numRules = stoi(argv[1]); //numRules is a global variable.
@@ -922,8 +938,7 @@ int main (int argc, char* argv[]) {
 	mainRoot = buildTree (ruleIDs, 0, fieldOrder);
     chrono::time_point<chrono::steady_clock> end = chrono::steady_clock::now();
     chrono::duration<double> elapsed = end - start;
-	// cout << endl << "The time taken to create tree: " << elapsed.count() 
-    //     << " seconds"<< endl;
+	cout << elapsed.count() << ", ";
     int ruleClassified = -1;
 	vector<int> queryResultSpecific;
 	vector<int> queryResultBroadest;
@@ -988,8 +1003,22 @@ int main (int argc, char* argv[]) {
 	}
 	//cout << endl << "The time taken to classify broadest rules for " << numPackets << " packets is: " << sum_time2.count() / 10 
        // << " seconds"<< endl;
-	cout << sum_time2.count() / 10 ;
+	cout << sum_time2.count() / 10  << std::endl;
 	
+	//Open a file for writing
+	std::ofstream outfileSpecific ("SpecificClassification.txt");
+	
+    if (!outfileSpecific) {
+        std::cerr << "Failed to open the file for writing.\n";
+        exit (0);
+    }
+	// Write the vector's contents to the file
+    for (const auto& value : queryResultSpecific) {
+        outfileSpecific << value << '\n';  // Writes each element on a new line
+    }
+
+    // Close the file (optional here, since the file will close when outfile goes out of scope)
+    outfileSpecific.close();
 	//Classifying brute force
 	if (brute_force_choice){
 		cout <<"\n Classifying Brute force: \n";
