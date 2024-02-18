@@ -424,6 +424,114 @@ RangeTree* buildTree (vector<int>* ruleIDs, int dim, const vector<int>& fieldOrd
 	return root;
 }
 
+RangeTree* buildTreeIterative (vector<int>* ruleIDs, int dim, const vector<int>& fieldOrder) {
+	vector<unsigned int>* endPoints;
+	RangeTree* aNode;
+	RangeTree* root = NULL;
+	stack<RangeTree*> s;
+	RangeTree* t;
+	queue<RangeTree*> myQ;
+	unsigned int k;
+    // cout << endl << "Inside buildTree for dimension: " << dim
+    //     << endl << "And the number of rules: " << ruleIDs->size() << endl;
+	unsigned int numRules = (*ruleIDs).size();
+	if (maxRulesPerNode < numRules) {
+	
+		endPoints = getEndPoints (ruleIDs,fieldOrder[dim]);
+		sort((*endPoints).begin(), (*endPoints).end());
+		//int numEndPoints = countEndPoints (endPoints);
+		//cout << "Number of end points = " << numEndPoints << endl;
+
+		k = (*endPoints)[0];
+		int numEP = (*endPoints).size();
+		for (int i=1; i < numEP; i++) {
+			if ((*endPoints)[i] != k) {
+				aNode = new RangeTree(k, (*endPoints)[i], fieldOrder[dim], NULL, NULL);
+				k = (*endPoints)[i];
+				myQ.push(aNode);
+				//cout << dim << ": >>>>> " << (*aNode).low << ": " << (*aNode).high << endl;
+			}
+		}
+		delete endPoints;
+		
+		while (myQ.size() > 1) {
+			RangeTree* l = myQ.front();
+			myQ.pop();
+			RangeTree* r = myQ.front();
+			if ((*l).high == (*r).low) {
+				myQ.pop();
+				RangeTree* n = new RangeTree ((*l).low, (*r).high, fieldOrder[dim], l, r);
+				//cout << dim << ": ++++++++" << (*n).low << ": " << (*n).high << endl;
+				myQ.push(n);
+			}
+			else myQ.push(l);
+		}
+
+		root = myQ.front(); //root of the dimension one range tree
+
+		//Insert the rules in the first dimension range tree - root
+
+		//insertRulesOnce(root, ruleIDs, fieldOrder[dim]);
+		insertRules(root, ruleIDs, fieldOrder[dim]);
+		//Process the next Dimension, if dim < maxDimensions
+		if ((dim+1) < MAX_DIMENSIONS) { //dim 0 is already procesed
+			s.push(root);
+			while (!s.empty()) {
+				t = s.top();
+				s.pop();
+				if ((*t).right != NULL) s.push((*t).right);
+				if ((*t).left != NULL) s.push((*t).left);
+				if (((*t).ruleIDs != NULL) /*&& ((*(*t).ruleIDs).size() > 1)*/) {
+					//cout << "@@@@: (" << (*t).low << ": " << (*t).high << ")" << endl;
+					RangeTree* another = buildTree ((*t).ruleIDs, dim+1, fieldOrder);
+					(*t).nextDimension = another;
+					// if (((*t).low == 15) && ((*t).high == 20)) {
+					// 	//cout << "$$$$$$$$$$$$$$$$$$$$$$$$" << endl;
+					// 	(*another).preOrder();
+					// }
+				}
+			}
+		}
+
+		//(*root).preOrder();
+	}
+	else {
+		endPoints = getEndPoints (ruleIDs,fieldOrder[dim]);
+		//sort((*endPoints).begin(), (*endPoints).end());
+		int numEP = (*endPoints).size();
+		uint32_t minEP = 4294967295;
+		uint32_t maxEP = 0;
+		//Finding min endpoint
+		for (int i = 0; i < numEP; i++) {
+			if (minEP > (*endPoints)[i]){
+				minEP = (*endPoints)[i];
+			}
+			if (maxEP < (*endPoints)[i]) {
+				maxEP = (*endPoints)[i];
+			}
+		}
+
+		root = new RangeTree (minEP, maxEP, fieldOrder[dim], NULL,NULL);
+		root->ruleIDs = new vector<int>();
+		for (unsigned int i = 0; i < ruleIDs->size(); i++) {
+			root->ruleIDs->push_back((*(ruleIDs))[i]);
+		}
+
+		// for (int i = 0; i < ruleIDs->size(); i++){
+		// 	bool ruleInserted = (*root).insertARule ((*ruleIDs)[i], fieldOrder[dim]);
+		// 	if (!ruleInserted) {
+		// 		cout << std::endl << "Rule was not inserted in the tree with dim " << fieldOrder[dim] ;
+		// 		cout << std::endl << "Tree low and high: " << k << " " << m;
+		// 		cout << std::endl << rules[(*ruleIDs)[i]]->getDimRangeMin(fieldOrder[dim]);
+		// 		cout << std::endl << rules[(*ruleIDs)[i]]->getDimRangeMax(fieldOrder[dim]);
+		// 	}
+		// }
+	}
+
+	return root;
+}
+
+
 
 void classify (RangeTree* root, Packet& packet, int dim, vector<int>* matches) {
 
